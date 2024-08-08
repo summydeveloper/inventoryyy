@@ -1,95 +1,188 @@
+ 
+
+'use client'
 import Image from "next/image";
-import styles from "./page.module.css";
+import { firestore } from "@/firebase";
+import { useState, useEffect } from 'react';
+import { Box, Modal, Typography, Stack, TextField, Button, IconButton } from "@mui/material"
+import { collection, deleteDoc, getDocs, query, setDoc, doc, getDoc } from "firebase/firestore";
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
+import InventoryIcon from '@mui/icons-material/Inventory';
+import { blue, green, grey } from "@mui/material/colors";
+
 
 export default function Home() {
+  const [inventory, setInventory] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [itemName, setItemName] = useState("");
+
+  const updateInventory = async () => {
+    const snapshot = query(collection(firestore, 'inventory'));
+    const docs = await getDocs(snapshot);
+    const inventoryList = [];
+    docs.forEach((doc) => {
+      inventoryList.push({
+        name: doc.id,
+        ...doc.data()
+      });
+    });
+    setInventory(inventoryList);
+  };
+
+  const removeItem = async (item) => {
+    const docRef = doc(collection(firestore, 'inventory'), item);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const { quantity } = docSnap.data();
+      if (quantity === 1) {
+        await deleteDoc(docRef);
+      } else {
+        await setDoc(docRef, { quantity: quantity - 1 });
+      }
+    }
+    updateInventory();
+  };
+
+  const addItem = async (item) => {
+    const docRef = doc(collection(firestore, 'inventory'), item);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const { quantity } = docSnap.data();
+      await setDoc(docRef, { quantity: quantity + 1 });
+    } else {
+      await setDoc(docRef, { quantity: 1 });
+    }
+    updateInventory();
+  };
+
+  useEffect(() => {
+    updateInventory();
+  }, []);
+
+  const handleOpen = () => setOpen(true);
+  const handleClose = () => setOpen(false);
+
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>app/page.js</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
+    <Box
+      width="100vw"
+      height="100vh"
+      display="flex"
+      justifyContent="center"
+      alignItems="center"
+      flexDirection="column"
+      gap={3}
+      bgcolor={grey[100]}
+      p={3}
+    >
+      <Modal open={open} onClose={handleClose}>
+        <Box
+          position="absolute"
+          top="50%"
+          left="50%"
+          width={400}
+          bgcolor="white"
+          borderRadius={3}
+          boxShadow={24}
+          p={4}
+          display="flex"
+          flexDirection="column"
+          gap={2}
+          sx={{ transform: "translate(-50%, -50%)" }}
+        >
+          <Typography variant="h6" color="primary" fontWeight="bold">
+            Add New Item
+          </Typography>
+          <Stack width="100%" direction="row" spacing={2}>
+            <TextField
+              variant="outlined"
+              fullWidth
+              label="Item Name"
+              value={itemName}
+              onChange={(e) => setItemName(e.target.value)}
             />
-          </a>
-        </div>
-      </div>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => {
+                addItem(itemName);
+                setItemName('');
+                handleClose();
+              }}
+              startIcon={<AddIcon />}
+            >
+              Add
+            </Button>
+          </Stack>
+        </Box>
+      </Modal>
 
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={handleOpen}
+        startIcon={<AddIcon />}
+        sx={{
+          fontWeight: 'bold',
+          textTransform: 'none',
+        }}
+      >
+        Add New Item
+      </Button>
 
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
+      <Box
+        width="90%"
+        maxWidth="800px"
+        borderRadius={2}
+        boxShadow={4}
+        overflow="hidden"
+      >
+        <Box
+          bgcolor={blue[700]}
+          color="white"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          padding={2}
         >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
+          <Typography variant="h4" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center' }}>
+            <InventoryIcon sx={{ marginRight: 1 }} />
+            Inventory
+          </Typography>
+        </Box>
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
+        <Stack
+          bgcolor="white"
+          spacing={2}
+          padding={3}
+          maxHeight="300px"
+          overflow="auto"
         >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+          {
+            inventory.map(({ name, quantity }) => (
+              <Box key={name}
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                padding={2}
+                bgcolor={green[50]}
+                borderRadius={2}
+                boxShadow={2}
+              >
+                <Typography variant="h6" color={grey[800]} fontWeight="bold">
+                  {name.charAt(0).toUpperCase() + name.slice(1)}
+                </Typography>
+                <Typography variant="h6" color={grey[800]} fontWeight="bold">
+                  {quantity}
+                </Typography>
+                <IconButton color="secondary" onClick={() => removeItem(name)}>
+                  <DeleteIcon />
+                </IconButton>
+              </Box>
+            ))
+          }
+        </Stack>
+      </Box>
+    </Box>
   );
 }
